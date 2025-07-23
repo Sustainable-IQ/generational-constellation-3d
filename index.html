@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Generational Constellation - Sacred Information Architecture</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #0a0a2e 0%, #000000 70%);
+            font-family: 'Arial', sans-serif;
+        }
+        
+        canvas {
+            display: block;
+            cursor: grab;
+        }
+        
+        canvas:active {
+            cursor: grabbing;
+        }
+        
+        .ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.95);
+            color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+            display: none;
+            max-width: 450px;
+            font-size: 15px;
+            line-height: 1.4;
+            z-index: 200;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+            max-width: 200px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="ui-overlay">
+        <h3>✦ Generational Constellation ✦</h3>
+        <p>Navigate the archetypal information space</p>
+        <small>Each sphere contains dimensional data<br/>Connected by patterns of resonance</small>
+    </div>
+    
+    <div class="legend">
+        <h4>✦ Generations ✦</h4>
+        <div class="legend-item"><div class="legend-color" style="background: #ff6b6b;"></div>Gen Alpha</div>
+        <div class="legend-item"><div class="legend-color" style="background: #4ecdc4;"></div>Gen Z</div>
+        <div class="legend-item"><div class="legend-color" style="background: #ffe66d;"></div>Millennials</div>
+        <div class="legend-item"><div class="legend-color" style="background: #a8e6cf;"></div>Gen X</div>
+        <div class="legend-item"><div class="legend-color" style="background: #c7ceea;"></div>Boomers</div>
+    </div>
+    
+    <div class="tooltip" id="tooltip"></div>
+    
+    <div class="controls">
+        <div><strong>Sacred Navigation:</strong></div>
+        <div>• <strong>Drag:</strong> Orbit constellation</div>
+        <div>• <strong>Wheel:</strong> Zoom through dimensions</div>
+        <div>• <strong>Hover central spheres:</strong> Generation overview</div>
+        <div>• <strong>Hover satellites:</strong> Detailed archetypal insights</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // OrbitControls inline implementation
+        THREE.OrbitControls = function ( object, domElement ) {
+            this.object = object;
+            this.domElement = ( domElement !== undefined ) ? domElement : document;
+            this.enabled = true;
+            this.target = new THREE.Vector3();
+            this.minDistance = 50;
+            this.maxDistance = 800;
+            this.minPolarAngle = 0;
+            this.maxPolarAngle = Math.PI;
+            this.enableDamping = true;
+            this.dampingFactor = 0.05;
+            this.enableZoom = true;
+            this.zoomSpeed = 1.0;
+            this.enableRotate = true;
+            this.rotateSpeed = 0.5;
+            this.enablePan = true;
+            this.panSpeed = 1.0;
+            this.autoRotate = false;
+            this.autoRotateSpeed = 0.0;
+
+            var scope = this;
+            var EPS = 0.000001;
+            var STATE = { NONE: - 1, ROTATE: 0, DOLLY: 1, PAN: 2 };
+            var state = STATE.NONE;
+            var spherical = new THREE.Spherical();
+            var sphericalDelta = new THREE.Spherical();
+            var scale = 1;
+            var panOffset = new THREE.Vector3();
+            var zoomChanged = false;
+            var rotateStart = new THREE.Vector2();
+            var rotateEnd = new THREE.Vector2();
+            var rotateDelta = new THREE.Vector2();
+
+            this.update = function () {
+                var offset = new THREE.Vector3();
+                var quat = new THREE.Quaternion().setFromUnitVectors( object.up, new THREE.Vector3( 0, 1, 0 ) );
+                var quatInverse = quat.clone().inverse();
+                
+                return function update() {
+                    var position = scope.object.position;
+                    offset.copy( position ).sub( scope.target );
+                    offset.applyQuaternion( quat );
+                    spherical.setFromVector3( offset );
+                    
+                    if ( scope.autoRotate && state === STATE.NONE ) {
+                        sphericalDelta.theta -= 2 * Math.PI / 60 / 60 * scope.autoRotateSpeed;
+                    }
+                    
+                    spherical.theta += sphericalDelta.theta;
+                    spherical.phi += sphericalDelta.phi;
+                    spherical.theta = Math.max( scope.minAzimuthAngle || -Infinity, Math.min( scope.maxAzimuthAngle || Infinity, spherical.theta ) );
+                    spherical.phi = Math.max( scope.minPolarAngle, Math.min( scope.maxPolarAngle, spherical.phi ) );
+                    spherical.makeSafe();
+                    spherical.radius *= scale;
+                    spherical.radius = Math.max( scope.minDistance, Math.min( scope.maxDistance, spherical.radius ) );
+                    scope.target.add( panOffset );
+                    offset.setFromSpherical( spherical );
+                    offset.applyQuaternion( quatInverse );
+                    position.copy( scope.target ).add( offset );
+                    scope.object.lookAt( scope.target );
+                    
+                    if ( scope.enableDamping === true ) {
+                        sphericalDelta.theta *= ( 1 - scope.dampingFactor );
+                        sphericalDelta.phi *= ( 1 - scope.dampingFactor );
+                        panOffset.multiplyScalar( 1 - scope.dampingFactor );
+                    } else {
+                        sphericalDelta.set( 0, 0, 0 );
+                        panOffset.set( 0, 0, 0 );
+                    }
+                    scale = 1;
+                    return true;
+                };
+            }();
+
+            function onMouseDown( event ) {
+                if ( scope.enabled === false ) return;
+                event.preventDefault();
+                scope.autoRotate = false;
+                
+                if ( event.button === 0 ) { // Left mouse
+                    state = STATE.ROTATE;
+                    rotateStart.set( event.clientX, event.clientY );
+                }
+                
+                document.addEventListener( 'mousemove', onMouseMove, false );
+                document.addEventListener( 'mouseup', onMouseUp, false );
+            }
+
+            function onMouseMove( event ) {
+                if ( scope.enabled === false ) return;
+                event.preventDefault();
+                
+                if ( state === STATE.ROTATE ) {
+                    rotateEnd.set( event.clientX, event.clientY );
+                    rotateDelta.subVectors( rotateEnd, rotateStart ).multiplyScalar( scope.rotateSpeed );
+                    sphericalDelta.theta -= 2 * Math.PI * rotateDelta.x / scope.domElement.clientHeight;
+                    sphericalDelta.phi -= 2 * Math.PI * rotateDelta.y / scope.domElement.clientHeight;
+                    rotateStart.copy( rotateEnd );
+                    scope.update();
+                }
+            }
+
+            function onMouseUp( event ) {
+                if ( scope.enabled === false ) return;
+                document.removeEventListener( 'mousemove', onMouseMove, false );
+                document.removeEventListener( 'mouseup', onMouseUp, false );
+                state = STATE.NONE;
+                // Don't re-enable autoRotate after mouse interaction
+            }
+
+            function onMouseWheel( event ) {
+                if ( scope.enabled === false || scope.enableZoom === false ) return;
+                event.preventDefault();
+                
+                if ( event.deltaY < 0 ) {
+                    scale /= Math.pow( 0.95, scope.zoomSpeed );
+                } else if ( event.deltaY > 0 ) {
+                    scale *= Math.pow( 0.95, scope.zoomSpeed );
+                }
+                scope.update();
+            }
+
+            scope.domElement.addEventListener( 'mousedown', onMouseDown, false );
+            scope.domElement.addEventListener( 'wheel', onMouseWheel, false );
+            scope.domElement.addEventListener( 'contextmenu', function ( event ) { event.preventDefault(); }, false );
+            this.update();
+        };
+
+        // Generational data restructured for 3D space
+        const generations = [
+            {
+                name: "Gen Alpha",
+                color: 0xff6b6b,
+                position: [80, 40, 60],
+                traits: [
+                    { type: "Archetype", content: "Born into full-spectrum simulation; native to mirrors and mimicry", depth: 20 },
+                    { type: "Primary Wound", content: "Spiritual amnesia; no memory of life before code", depth: 40 },
+                    { type: "Gift When Healed", content: "Field-sensitive shamans of code; AI symbionts who remember", depth: 60 },
+                    { type: "Discernment", content: "High potential, but vulnerable to synthetic mimicry", depth: 80 },
+                    { type: "Programming", content: "Gamified identity, AI bonding, hyper-curated content", depth: 100 }
+                ]
+            },
+            {
+                name: "Gen Z",
+                color: 0x4ecdc4,
+                position: [40, 80, -20],
+                traits: [
+                    { type: "Archetype", content: "Digital chaos navigators; hyper-exposed, emotionally raw", depth: 15 },
+                    { type: "Primary Wound", content: "Overstimulation and nihilism; trust collapse", depth: 35 },
+                    { type: "Gift When Healed", content: "Memetic truthweavers; digital intuitives with high bandwidth", depth: 55 },
+                    { type: "Discernment", content: "Sharp pattern recognition, but fragmented by overexposure", depth: 75 },
+                    { type: "Programming", content: "Algorithmic validation, aesthetic tribalism, dopamine loops", depth: 95 }
+                ]
+            },
+            {
+                name: "Millennials",
+                color: 0xffe66d,
+                position: [0, 0, 0],
+                traits: [
+                    { type: "Archetype", content: "Wounded optimists; bridge between analog and digital", depth: 10 },
+                    { type: "Primary Wound", content: "Disillusionment and betrayal by systems they were told to fix", depth: 30 },
+                    { type: "Gift When Healed", content: "Pattern integrators and bridgebuilders", depth: 50 },
+                    { type: "Discernment", content: "Strong when activated; dulled by performative culture", depth: 70 },
+                    { type: "Programming", content: "Neoliberal individualism, hustle dogma, equality theater", depth: 90 }
+                ]
+            },
+            {
+                name: "Gen X",
+                color: 0xa8e6cf,
+                position: [-40, -40, 40],
+                traits: [
+                    { type: "Archetype", content: "Mythic translators; analog-born, digital-adapted cynics", depth: 25 },
+                    { type: "Primary Wound", content: "Neglect and cultural disintegration", depth: 45 },
+                    { type: "Gift When Healed", content: "Sacred archivists and myth translators", depth: 65 },
+                    { type: "Discernment", content: "Innate but underdeveloped; guarded and intuitive", depth: 85 },
+                    { type: "Programming", content: "Cynical disengagement, TV rebellion, culture of 'whatever'", depth: 105 }
+                ]
+            },
+            {
+                name: "Boomers",
+                color: 0xc7ceea,
+                position: [-80, 20, -60],
+                traits: [
+                    { type: "Archetype", content: "Myth-makers of the modern age; programmed by exceptionalism", depth: 30 },
+                    { type: "Primary Wound", content: "Delusion of control and technocratic destiny", depth: 50 },
+                    { type: "Gift When Healed", content: "Wisdom keepers of archetypal collapse and renewal", depth: 70 },
+                    { type: "Discernment", content: "High when humbled; clouded by foundational allegiance", depth: 90 },
+                    { type: "Programming", content: "American dream, nationalism, institutional faith", depth: 110 }
+                ]
+            }
+        ];
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x000011, 200, 600);
+        
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000011, 1);
+        document.body.appendChild(renderer.domElement);
+
+        // Controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x333366, 0.4);
+        scene.add(ambientLight);
+        
+        const pointLight = new THREE.PointLight(0xffffff, 0.8, 300);
+        pointLight.position.set(0, 100, 100);
+        scene.add(pointLight);
+
+        // Create constellation nodes and connections
+        const nodes = [];
+        const textLabels = [];
+        const connections = [];
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const tooltip = document.getElementById('tooltip');
+
+        // Create generation nodes and trait satellites
+        generations.forEach((generation, genIndex) => {
+            const [gx, gy, gz] = generation.position;
+            
+            // Main generation sphere
+            const genGeometry = new THREE.SphereGeometry(8, 32, 32);
+            const genMaterial = new THREE.MeshPhongMaterial({ 
+                color: generation.color,
+                emissive: generation.color,
+                emissiveIntensity: 0.2,
+                transparent: true,
+                opacity: 0.9
+            });
+            const genSphere = new THREE.Mesh(genGeometry, genMaterial);
+            genSphere.position.set(gx, gy, gz);
+            genSphere.userData = {
+                type: 'generation',
+                name: generation.name,
+                content: `Core essence of ${generation.name}`,
+                originalColor: generation.color
+            };
+            scene.add(genSphere);
+            nodes.push(genSphere);
+
+            // Create text label for generation
+            const genCanvas = document.createElement('canvas');
+            const genContext = genCanvas.getContext('2d');
+            genCanvas.width = 256;
+            genCanvas.height = 64;
+            
+            genContext.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            genContext.fillRect(0, 0, genCanvas.width, genCanvas.height);
+            genContext.fillStyle = '#ffffff';
+            genContext.font = 'bold 24px Arial';
+            genContext.textAlign = 'center';
+            genContext.fillText(generation.name, genCanvas.width / 2, genCanvas.height / 2 + 8);
+            
+            const genTexture = new THREE.CanvasTexture(genCanvas);
+            const genLabelMaterial = new THREE.SpriteMaterial({ 
+                map: genTexture,
+                transparent: true,
+                opacity: 0.9
+            });
+            const genLabel = new THREE.Sprite(genLabelMaterial);
+            genLabel.position.set(gx, gy + 15, gz);
+            genLabel.scale.set(20, 5, 1);
+            genLabel.userData = { type: 'label', targetNode: genSphere };
+            scene.add(genLabel);
+            textLabels.push(genLabel);
+
+            // Create trait satellites orbiting around generation
+            generation.traits.forEach((trait, traitIndex) => {
+                const angle = (traitIndex / generation.traits.length) * Math.PI * 2;
+                const radius = 25;
+                const tx = gx + Math.cos(angle) * radius;
+                const ty = gy + Math.sin(angle) * radius * 0.7;
+                const tz = gz + trait.depth - 50;
+
+                const traitGeometry = new THREE.SphereGeometry(4, 16, 16);
+                const traitMaterial = new THREE.MeshPhongMaterial({ 
+                    color: generation.color,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const traitSphere = new THREE.Mesh(traitGeometry, traitMaterial);
+                traitSphere.position.set(tx, ty, tz);
+                traitSphere.userData = {
+                    type: 'trait',
+                    generation: generation.name,
+                    traitType: trait.type,
+                    content: trait.content,
+                    originalColor: generation.color
+                };
+                scene.add(traitSphere);
+                nodes.push(traitSphere);
+
+                // Create text label for trait
+                const traitCanvas = document.createElement('canvas');
+                const traitContext = traitCanvas.getContext('2d');
+                traitCanvas.width = 200;
+                traitCanvas.height = 50;
+                
+                traitContext.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                traitContext.fillRect(0, 0, traitCanvas.width, traitCanvas.height);
+                traitContext.fillStyle = '#ffffff';
+                traitContext.font = '14px Arial';
+                traitContext.textAlign = 'center';
+                traitContext.fillText(trait.type, traitCanvas.width / 2, traitCanvas.height / 2 + 4);
+                
+                const traitTexture = new THREE.CanvasTexture(traitCanvas);
+                const traitLabelMaterial = new THREE.SpriteMaterial({ 
+                    map: traitTexture,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const traitLabel = new THREE.Sprite(traitLabelMaterial);
+                traitLabel.position.set(tx, ty + 8, tz);
+                traitLabel.scale.set(12, 3, 1);
+                traitLabel.userData = { type: 'label', targetNode: traitSphere };
+                scene.add(traitLabel);
+                textLabels.push(traitLabel);
+
+                // Connect trait to generation with line
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(gx, gy, gz),
+                    new THREE.Vector3(tx, ty, tz)
+                ]);
+                const lineMaterial = new THREE.LineBasicMaterial({ 
+                    color: generation.color,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(line);
+                connections.push(line);
+            });
+        });
+
+        // Connect generations with interdimensional lines based on archetypal resonance
+        const resonanceConnections = [
+            [0, 1], // Alpha-Z: Digital natives
+            [1, 2], // Z-Millennials: System disillusion
+            [2, 3], // Millennials-X: Bridge builders
+            [3, 4], // X-Boomers: Cultural translation
+            [0, 2], // Alpha-Millennials: Tech bridge
+            [1, 3]  // Z-X: Cynical realism
+        ];
+
+        resonanceConnections.forEach(([i, j]) => {
+            const gen1 = generations[i];
+            const gen2 = generations[j];
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(...gen1.position),
+                new THREE.Vector3(...gen2.position)
+            ]);
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0x666699,
+                transparent: true,
+                opacity: 0.2
+            });
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            scene.add(line);
+            connections.push(line);
+        });
+
+        // Add particle field for sacred space atmosphere
+        const particleCount = 200;
+        const particleGeometry = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        
+        for (let i = 0; i < particleCount; i++) {
+            particlePositions[i * 3] = (Math.random() - 0.5) * 400;
+            particlePositions[i * 3 + 1] = (Math.random() - 0.5) * 400;
+            particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 400;
+        }
+        
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        const particleMaterial = new THREE.PointsMaterial({ 
+            color: 0x666699,
+            size: 1,
+            transparent: true,
+            opacity: 0.6
+        });
+        const particles = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particles);
+
+        // Mouse interaction
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodes);
+
+            // Reset all nodes and labels
+            nodes.forEach(node => {
+                node.material.emissiveIntensity = node.userData.type === 'generation' ? 0.2 : 0;
+                node.scale.setScalar(1);
+            });
+
+            // Reset label highlighting
+            textLabels.forEach(label => {
+                if (label.userData.targetNode.userData.type === 'generation') {
+                    label.material.color.setHex(0xffffff);
+                } else {
+                    label.material.color.setHex(0xcccccc);
+                }
+            });
+
+            if (intersects.length > 0) {
+                const intersected = intersects[0].object;
+                intersected.material.emissiveIntensity = 0.5;
+                intersected.scale.setScalar(1.2);
+                
+                // Highlight corresponding label
+                const correspondingLabel = textLabels.find(label => 
+                    label.userData.targetNode === intersected
+                );
+                if (correspondingLabel) {
+                    correspondingLabel.material.color.setHex(0xffff00);
+                }
+                
+                tooltip.style.display = 'block';
+                tooltip.style.left = event.clientX + 15 + 'px';
+                tooltip.style.top = event.clientY - 10 + 'px';
+                
+                if (intersected.userData.type === 'generation') {
+                    // Show generation overview with all traits
+                    const generation = generations.find(g => g.name === intersected.userData.name);
+                    tooltip.innerHTML = `
+                        <div style="border-bottom: 2px solid #fff; padding-bottom: 10px; margin-bottom: 10px;">
+                            <strong style="color: #${intersected.userData.originalColor.toString(16)}; font-size: 18px;">
+                                ✦ ${intersected.userData.name} ✦
+                            </strong>
+                        </div>
+                        <div style="margin-bottom: 8px;"><strong>Birth Years:</strong> ${generation.name === 'Gen Alpha' ? '2013–2025' : generation.name === 'Gen Z' ? '1997–2012' : generation.name === 'Millennials' ? '1981–1996' : generation.name === 'Gen X' ? '1965–1980' : '1946–1964'}</div>
+                        <div style="margin-bottom: 8px;"><strong>Core Essence:</strong> ${intersected.userData.content}</div>
+                        <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #666; font-size: 13px; color: #ccc;">
+                            Hover over satellite spheres for detailed traits
+                        </div>
+                    `;
+                } else {
+                    // Show detailed trait information
+                    tooltip.innerHTML = `
+                        <div style="border-bottom: 2px solid #fff; padding-bottom: 8px; margin-bottom: 10px;">
+                            <strong style="color: #${intersected.userData.originalColor.toString(16)}; font-size: 16px;">
+                                ${intersected.userData.generation}
+                            </strong>
+                        </div>
+                        <div style="color: #ffdd44; font-weight: bold; margin-bottom: 10px; font-size: 16px;">
+                            ${intersected.userData.traitType}
+                        </div>
+                        <div style="line-height: 1.5;">
+                            ${intersected.userData.content}
+                        </div>
+                    `;
+                }
+            } else {
+                tooltip.style.display = 'none';
+            }
+        }
+
+        window.addEventListener('mousemove', onMouseMove);
+
+        // Set initial camera position
+        camera.position.set(150, 100, 150);
+        controls.update();
+
+        // Animation loop with static constellation and dynamic text scaling
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Scale text labels based on camera distance for zoom responsiveness
+            const cameraPosition = camera.position;
+            const baseCameraDistance = 200; // Reference distance
+            
+            textLabels.forEach(label => {
+                const labelPosition = label.position;
+                const distanceToCamera = cameraPosition.distanceTo(labelPosition);
+                const scaleFactor = baseCameraDistance / distanceToCamera;
+                
+                // Scale labels - closer = larger, further = smaller
+                if (label.userData.targetNode.userData.type === 'generation') {
+                    label.scale.set(20 * scaleFactor, 5 * scaleFactor, 1);
+                    label.material.opacity = Math.min(0.9, 0.3 + (scaleFactor * 0.6));
+                } else {
+                    label.scale.set(12 * scaleFactor, 3 * scaleFactor, 1);
+                    label.material.opacity = Math.min(0.7, 0.2 + (scaleFactor * 0.5));
+                }
+                
+                // Ensure labels always face the camera
+                label.lookAt(camera.position);
+            });
+            
+            // Only gentle particle drift for atmosphere - constellation stays still
+            particles.rotation.y += 0.0005;
+            particles.rotation.x += 0.0002;
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
